@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Correlación de Pearson</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --text-main: #1f2937;
+            --text-muted: #4b5563;
+            --accent: #10b981;
+            --accent-neg: #ef4444;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 30px;
+        }
+
+        header {
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 15px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #fafafa;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            cursor: crosshair;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            background: #ffffff;
+            display: block;
+        }
+
+        .canvas-hint {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-muted);
+            pointer-events: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        .panel h3 {
+            font-size: 16px;
+            color: var(--primary);
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        button.primary-btn {
+            background: var(--primary-light);
+            color: white;
+            border: none;
+        }
+
+        button.primary-btn:hover {
+            background: #2563eb;
+        }
+
+        button.danger-btn {
+            background: #fee2e2;
+            color: var(--accent-neg);
+            border: 1px solid #fca5a5;
+        }
+
+        button.danger-btn:hover {
+            background: #fecaca;
+        }
+
+        .interpretation {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-muted);
+            margin-top: 10px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid var(--primary-light);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Simulador Interactivo de Correlación de Pearson</h1>
+        <p>Haz clic dentro del plano para agregar puntos o utiliza los preajustes para observar cómo cambia el coeficiente de correlación (r), la línea de mejor ajuste y el valor p.</p>
+    </header>
+
+    <div class="workspace">
+        <div class="canvas-container">
+            <div class="canvas-hint">📍 Haz clic para añadir puntos | Arrastra para dibujar rápidamente</div>
+            <canvas id="plotCanvas" width="600" height="450"></canvas>
+        </div>
+
+        <div class="controls">
+            <div class="panel">
+                <h3>Métricas Estadísticas</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Coeficiente r:</span>
+                        <span id="valR" class="stat-value">0.00</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">R-Cuadrado (R²):</span>
+                        <span id="valR2" class="stat-value">0.00%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Num. Puntos (N):</span>
+                        <span id="valN" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Valor-P (Significancia):</span>
+                        <span id="valP" class="stat-value">N/A</span>
+                    </div>
+                </div>
+                <div id="interpretationBox" class="interpretation">
+                    Agrega al menos 3 puntos para calcular las métricas estadísticas y trazar la línea de tendencia.
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Preajustes de Demostración</h3>
+                <div class="btn-grid">
+                    <button onclick="loadPreset('strong_pos')">📈 Fuerte (+)</button>
+                    <button onclick="loadPreset('strong_neg')">📉 Fuerte (-)</button>
+                    <button onclick="loadPreset('weak_pos')">🌤️ Débil (+)</button>
+                    <button onclick="loadPreset('no_corr')">🎲 Sin Correlación</button>
+                    <button onclick="loadPreset('perfect')">🎯 Perfecta</button>
+                    <button onclick="loadPreset('mirage')">⚠️ Espejismo (N=2)</button>
+                </div>
+                <button class="danger-btn" style="width: 100%; margin-top: 5px;" onclick="clearCanvas()">Limpiar Lienzo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('plotCanvas');
+    const ctx = canvas.getContext('2d');
+    let points = [];
+    let isDrawing = false;
+
+    // Configuración visual del plano cartesiano
+    const padding = 40;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    function drawGrid() {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Dibujar Ejes principales
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // Eje X
+        ctx.moveTo(padding, height - padding);
+        ctx.lineTo(width - padding, height - padding);
+        // Eje Y
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.stroke();
+
+        // Líneas tenues de cuadrícula
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = padding + 40; i < width - padding; i += 40) {
+            ctx.moveTo(i, padding);
+            ctx.lineTo(i, height - padding);
+        }
+        for (let j = padding + 40; j < height - padding; j += 40) {
+            ctx.moveTo(padding, j);
+            ctx.lineTo(width - padding, j);
+        }
+        ctx.stroke();
+
+        // Etiquetas básicas de los ejes
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('Variable X', width / 2 - 20, height - 10);
+        
+        ctx.save();
+        ctx.translate(15, height / 2 + 20);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Variable Y', 0, 0);
+        ctx.restore();
+    }
+
+    function drawPoints() {
+        points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#3b82f6';
+            ctx.fill();
+            ctx.strokeStyle = '#1e3a8a';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+    }
+
+    function calculateStats() {
+        const n = points.length;
+        document.getElementById('valN').innerText = n;
+
+        if (n < 2) {
+            document.getElementById('valR').innerText = '0.00';
+            document.getElementById('valR2').innerText = '0.00%';
+            document.getElementById('valP').innerText = 'N/A';
+            document.getElementById('interpretationBox').innerText = 'Agrega más puntos para ver el análisis lineal.';
+            return;
+        }
+
+        // Convertir coordenadas de pantalla a un plano matemático simple (0 a 100)
+        const data = points.map(p => ({
+            x: ((p.x - padding) / (width - 2 * padding)) * 100,
+            y: (((height - padding) - p.y) / (height - 2 * padding)) * 100
+        }));
+
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+        data.forEach(p => {
+            sumX += p.x;
+            sumY += p.y;
+            sumXY += (p.x * p.y);
+            sumX2 += (p.x * p.x);
+            sumY2 += (p.y * p.y);
+        });
+
+        const numR = (n * sumXY) - (sumX * sumY);
+        const denR = Math.sqrt(((n * sumX2) - (sumX * sumX)) * ((n * sumY2) - (sumY * sumY)));
+        
+        let r = denR === 0 ? 0 : numR / denR;
+        if (r > 1) r = 1;
+        if (r < -1) r = -1;
+
+        const r2 = r * r;
+
+        // Calcular Línea de regresión: y = mx + b
+        const denominator = (n * sumX2) - (sumX * sumX);
+        let m = denominator === 0 ? 0 : ((n * sumXY) - (sumX * sumY)) / denominator;
+        let b = (sumY - (m * sumX)) / n;
+
+        // Dibujar línea de ajuste si el denominador es válido
+        if (denominator !== 0 && n >= 2) {
+            drawLineOfBestFit(m, b);
+        }
+
+        // Actualizar UI
+        document.getElementById('valR').innerText = r.toFixed(2);
+        document.getElementById('valR2').innerText = (r2 * 100).toFixed(1) + '%';
+        
+        // Cambiar el color de acuerdo al signo del coeficiente r
+        const valRElem = document.getElementById('valR');
+        if (r > 0.3) valRElem.style.color = '#10b981';
+        else if (r < -0.3) valRElem.style.color = '#ef4444';
+        else valRElem.style.color = '#1f2937';
+
+        // Estimación simplificada del valor P para fines educativos e interactivos
+        let pValueStr = "N/A";
+        let interTxt = "";
+
+        if (n === 2) {
+            pValueStr = "1.000";
+            interTxt = "⚠️ ¡Espejismo estadístico! Con solo 2 puntos, la correlación siempre es perfecta (r=1 o -1), pero el valor p es 1.00 porque no hay certeza matemática.";
+        } else {
+            // T-statistic approximation
+            const df = n - 2;
+            const t = Math.abs(r) * Math.sqrt(df / (1 - r2 + 1e-9));
+            
+            // Integración de aproximación de distribución t simple para la cola
+            if (t > 4) pValueStr = "< 0.001";
+            else if (t > 2.5) pValueStr = "< 0.05";
+            else pValueStr = "> 0.10";
+
+            // Texto descriptivo dinámico
+            if (Math.abs(r) > 0.7) {
+                interTxt = `Correlación lineal FUERTE ${r > 0 ? 'positiva' : 'negativa'}. El ${ (r2*100).toFixed(0) }% de la variabilidad de Y se explica por X.`;
+            } else if (Math.abs(r) > 0.3) {
+                interTxt = `Correlación lineal MODERADA o DÉBIL. Hay una tendencia visible, pero con dispersión notable.`;
+            } else {
+                interTxt = `Sin correlación lineal evidente. Los cambios en una variable no predicen de forma clara a la otra.`;
+            }
+
+            if (pValueStr.includes("< 0.05") || pValueStr.includes("< 0.001")) {
+                interTxt += " El resultado es estadísticamente SIGNIFICATIVO (P < 0.05). Es poco probable que sea puro azar.";
+            } else {
+                interTxt += " No es estadísticamente significativo. Podría deberse al azar o a muestras pequeñas.";
+            }
+        }
+
+        document.getElementById('valP').innerText = pValueStr;
+        document.getElementById('interpretationBox').innerText = interTxt;
+    }
+
+    function drawLineOfBestFit(m, b) {
+        // Mapear de regreso de coordenadas matemáticas (0-100) a coordenadas de píxeles en pantalla
+        function mathToPixel(mx, my) {
+            const px = padding + (mx / 100) * (width - 2 * padding);
+            const py = (height - padding) - (my / 100) * (height - 2 * padding);
+            return { x: px, y: py };
+        }
+
+        const pt1 = mathToPixel(0, b);
+        const pt2 = mathToPixel(100, m * 100 + b);
+
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(pt1.x, pt1.y);
+        ctx.lineTo(pt2.x, pt2.y);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset
+    }
+
+    function update() {
+        drawGrid();
+        drawPoints();
+        calculateStats();
+    }
+
+    // Eventos del Mouse para interactuar
+    function addPointFromEvent(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Limitar la inserción dentro de los márgenes útiles del plano
+        if (x >= padding && x <= width - padding && y >= padding && y <= height - padding) {
+            // Evitar duplicados exactos muy cercanos al arrastrar
+            if (points.length === 0 || Math.hypot(points[points.length-1].x - x, points[points.length-1].y - y) > 8) {
+                points.push({ x, y });
+                update();
+            }
+        }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        addPointFromEvent(e);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (isDrawing) addPointFromEvent(e);
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDrawing = false;
+    });
+
+    function clearCanvas() {
+        points = [];
+        update();
+    }
+
+    // Generar muestras preajustadas explicadas en los videos de StatQuest
+    function loadPreset(type) {
+        clearCanvas();
+        const pts = [];
+        
+        function pixelX(pct) { return padding + (pct / 100) * (width - 2 * padding); }
+        function pixelY(pct) { return (height - padding) - (pct / 100) * (height - 2 * padding); }
+
+        if (type === 'strong_pos') {
+            for (let x = 10; x <= 90; x += 5) {
+                let y = x + (Math.random() * 12 - 6);
+                pts.push({ x: pixelX(x), y: pixelY(y) });
+            }
+        } else if (type === 'strong_neg') {
+            for (let x = 10; x <= 90; x += 5) {
+                let y = (100 - x) + (Math.random() * 12 - 6);
+                pts.push({ x: pixelX(x), y: pixelY(y) });
+            }
+        } else if (type === 'weak_pos') {
+            for (let x = 10; x <= 90; x += 4) {
+                let y = 0.5 * x + 25 + (Math.random() * 36 - 18);
+                pts.push({ x: pixelX(x), y: pixelY(y) });
+            }
+        } else if (type === 'no_corr') {
+            for (let i = 0; i < 30; i++) {
+                let x = 15 + Math.random() * 70;
+                let y = 15 + Math.random() * 70;
+                pts.push({ x: pixelX(x), y: pixelY(y) });
+            }
+        } else if (type === 'perfect') {
+            for (let x = 15; x <= 85; x += 10) {
+                let y = 0.8 * x + 10;
+                pts.push({ x: pixelX(x), y: pixelY(y) });
+            }
+        } else if (type === 'mirage') {
+            // Ejemplo crítico de Josh Starmer: Solo dos puntos dan correlación perfecta r=1
+            pts.push({ x: pixelX(30), y: pixelY(40) });
+            pts.push({ x: pixelX(70), y: pixelY(75) });
+        }
+
+        points = pts;
+        update();
+    }
+
+    // Inicializar lienzo vacío al cargar
+    update();
+</script>
+</body>
+</html>

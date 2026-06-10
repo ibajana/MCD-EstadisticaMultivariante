@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Interactivo de PCA (Análisis de Componentes Principales)</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --primary: #0f172a;
+            --primary-light: #2563eb;
+            --pc1-color: #dc2626;
+            --pc2-color: #16a34a;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+            padding: 35px;
+        }
+
+        header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 26px;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 35px;
+        }
+
+        @media (max-width: 900px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .canvas-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+            position: relative;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #ffffff;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: crosshair;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .hint-bar {
+            background: rgba(15, 23, 42, 0.05);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .panel {
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel h3 {
+            font-size: 16px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 8px;
+        }
+
+        .metrics-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: #ffffff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        .scree-container {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .scree-bar-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .scree-label {
+            width: 45px;
+        }
+
+        .scree-track {
+            flex-grow: 1;
+            height: 16px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .scree-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: white;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #e2e8f0;
+            border-color: #94a3b8;
+        }
+
+        button.danger-btn {
+            background: #fee2e2;
+            color: #ef4444;
+            border: 1px solid #fca5a5;
+        }
+
+        button.danger-btn:hover {
+            background: #fecaca;
+        }
+
+        .explanation-box {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #475569;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-light);
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Simulador de Análisis de Componentes Principales (PCA)</h1>
+        <p>Añade puntos haciendo clic en el plano para entender cómo funciona la reducción de dimensionalidad de StatQuest. El sistema calculará automáticamente el centro de los datos, rotará el espacio y proyectará los componentes PC1 (máxima varianza) y PC2 (perpendicular).</p>
+    </header>
+
+    <div class="workspace">
+        <div class="canvas-area">
+            <div class="hint-bar">✨ Haz clic en el plano para agregar muestras | Necesitas al menos 3 puntos</div>
+            <div class="canvas-container">
+                <canvas id="pcaCanvas" width="600" height="500"></canvas>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="panel">
+                <h3>Varianza y Scree Plot</h3>
+                <div class="scree-container">
+                    <div class="scree-bar-wrapper">
+                        <span class="scree-label" style="color: var(--pc1-color)">PC1:</span>
+                        <div class="scree-track">
+                            <div id="barPC1" class="scree-fill" style="width: 0%; background: var(--pc1-color);"></div>
+                        </div>
+                        <span id="pctPC1">0%</span>
+                    </div>
+                    <div class="scree-bar-wrapper">
+                        <span class="scree-label" style="color: var(--pc2-color)">PC2:</span>
+                        <div class="scree-track">
+                            <div id="barPC2" class="scree-fill" style="width: 0%; background: var(--pc2-color);"></div>
+                        </div>
+                        <span id="pctPC2">0%</span>
+                    </div>
+                </div>
+                <div id="expBox" class="explanation-box">
+                    Agrega muestras para calcular los componentes principales y observar cuánta información (varianza) captura cada uno.
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Métricas del Sistema</h3>
+                <div class="metrics-list">
+                    <div class="metric-card">
+                        <div class="metric-header" style="color: var(--text-muted)">Centro de los Datos (Media)</div>
+                        <div id="valCenter" class="metric-value" style="font-size: 16px;">X: -, Y: -</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header" style="color: var(--pc1-color)">Eigenvector PC1 (Receta)</div>
+                        <div id="valVector" class="metric-value" style="font-size: 15px;">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-header" style="color: var(--text-main)">Muestras Totales (N)</div>
+                        <div id="valN" class="metric-value">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Muestras de Demostración</h3>
+                <div class="btn-group">
+                    <button onclick="loadPreset('linear')">🧬 Correlación Alta</button>
+                    <button onclick="loadPreset('circular')">⭕ Dispersión Homogénea</button>
+                    <button onclick="loadPreset('clusters')">👥 Dos Clústers</button>
+                    <button onclick="loadPreset('outlier')">⚠️ Con Outlier</button>
+                </div>
+                <button class="danger-btn" style="width: 100%;" onclick="resetCanvas()">Borrar Todo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('pcaCanvas');
+    const ctx = canvas.getContext('2d');
+    let points = [];
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    function drawGrid() {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Cuadrícula de fondo
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 50; x < width; x += 50) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, height);
+        }
+        for (let y = 50; y < height; y += 50) {
+            ctx.moveTo(0, y); ctx.lineTo(width, y);
+        }
+        ctx.stroke();
+
+        // Ejes cartesianos indicativos del espacio original
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(30, height - 30); ctx.lineTo(width - 30, height - 30); // Eje X
+        ctx.moveTo(30, 30); ctx.lineTo(30, height - 30); // Eje Y
+        ctx.stroke();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('Variable 1 (ej. Variable X)', width - 150, height - 12);
+        ctx.save();
+        ctx.translate(15, 120);
+        ctx.rotate(-Math.PI/2);
+        ctx.fillText('Variable 2 (ej. Variable Y)', 0, 0);
+        ctx.restore();
+    }
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Evitar clics en los extremos absolutos de los ejes
+        if(x > 10 && x < width - 10 && y > 10 && y < height - 10) {
+            points.push({ x, y });
+            calculatePCA();
+        }
+    });
+
+    function resetCanvas() {
+        points = [];
+        calculatePCA();
+    }
+
+    function calculatePCA() {
+        drawGrid();
+        
+        const n = points.length;
+        document.getElementById('valN').innerText = n;
+
+        if (n === 0) {
+            document.getElementById('valCenter').innerText = "X: -, Y: -";
+            document.getElementById('valVector').innerText = "-";
+            document.getElementById('pctPC1').innerText = "0%";
+            document.getElementById('pctPC2').innerText = "0%";
+            document.getElementById('barPC1').style.width = "0%";
+            document.getElementById('barPC2').style.width = "0%";
+            document.getElementById('expBox').innerText = "Agrega muestras para calcular los componentes principales y observar cuánta información (varianza) captura cada uno.";
+            return;
+        }
+
+        // 1. Calcular el Centro de Gravedad (Medias)
+        let sumX = 0, sumY = 0;
+        points.forEach(p => { sumX += p.x; sumY += p.y; });
+        const meanX = sumX / n;
+        const meanY = sumY / n;
+
+        document.getElementById('valCenter').innerText = `X: ${meanX.toFixed(0)}, Y: ${(height - meanY).toFixed(0)}`;
+
+        // Dibujar el centro de los datos (Paso 2 de StatQuest)
+        ctx.fillStyle = '#6366f1';
+        ctx.beginPath();
+        ctx.arc(meanX, meanY, 7, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Dibujar los puntos originales
+        points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#334155';
+            ctx.fill();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        if (n < 3) {
+            document.getElementById('valVector').innerText = "Necesitas ≥ 3 puntos";
+            return;
+        }
+
+        // 2. Centrar los datos matemáticamente (restar la media) y calcular matriz de covarianza
+        let covXX = 0, covXY = 0, covYY = 0;
+        points.forEach(p => {
+            const dx = p.x - meanX;
+            const dy = p.y - meanY;
+            covXX += dx * dx;
+            covXY += dx * dy;
+            covYY += dy * dy;
+        });
+        
+        covXX /= (n - 1);
+        covXY /= (n - 1);
+        covYY /= (n - 1);
+
+        // 3. Encontrar Eigenvalues de la matriz de covarianza de 2x2 mediante ecuación cuadrática: det(A - λI) = 0
+        // λ² - tr(A)λ + det(A) = 0
+        const trace = covXX + covYY;
+        const det = (covXX * covYY) - (covXY * covXY);
+        
+        const discriminant = Math.sqrt((trace * trace) - 4 * det);
+        const lambda1 = (trace + discriminant) / 2; // Mayor Eigenvalue (PC1)
+        const lambda2 = (trace - discriminant) / 2; // Menor Eigenvalue (PC2)
+
+        // Calcular porcentajes de varianza explicada (Scree plot data)
+        const totalVariance = lambda1 + lambda2;
+        const pct1 = totalVariance > 0 ? (lambda1 / totalVariance) * 100 : 0;
+        const pct2 = totalVariance > 0 ? (lambda2 / totalVariance) * 100 : 0;
+
+        document.getElementById('pctPC1').innerText = pct1.toFixed(1) + "%";
+        document.getElementById('pctPC2').innerText = pct2.toFixed(1) + "%";
+        document.getElementById('barPC1').style.width = pct1 + "%";
+        document.getElementById('barPC2').style.width = pct2 + "%";
+
+        // 4. Calcular el Eigenvector correspondiente a lambda1 (PC1)
+        // (covXX - lambda1)*vx + covXY*vy = 0  =>  dirección del vector
+        let vx = 0, vy = 0;
+        if (covXY !== 0) {
+            vx = covXY;
+            vy = lambda1 - covXX;
+        } else {
+            // Caso donde las variables no están correlacionadas en absoluto
+            if (covXX > covYY) { vx = 1; vy = 0; }
+            else { vx = 0; vy = 1; }
+        }
+
+        // Normalizar el vector para convertirlo en Unit Vector (Paso de escala en StatQuest)
+        const mag = Math.hypot(vx, vy);
+        if (mag > 0) { vx /= mag; vy /= mag; }
+
+        // Mostrar la "receta" o Loading Scores en la interfaz
+        // Invertimos el signo de Y para simular coordenadas de plano cartesiano estándar (Y crece hacia arriba)
+        document.getElementById('valVector').innerText = `[V1: ${vx.toFixed(2)}, V2: ${(-vy).toFixed(2)}]`;
+
+        // 5. Dibujar las líneas de los Componentes Principales cruzando por el centro
+        // Línea PC1 (Roja)
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(meanX - vx * 1000, meanY - vy * 1000);
+        ctx.lineTo(meanX + vx * 1000, meanY + vy * 1000);
+        ctx.stroke();
+
+        // Línea PC2 (Verde, perpendicular: el vector perpendicular a (vx, vy) es (-vy, vx))
+        ctx.strokeStyle = '#16a34a';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(meanX - (-vy) * 1000, meanY - vx * 1000);
+        ctx.lineTo(meanX + (-vy) * 1000, meanY + vx * 1000);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset
+
+        // Mensaje dinámico explicativo
+        if (pct1 > 85) {
+            document.getElementById('expBox').innerText = `💡 ¡Excelente representación 1D! PC1 captura el ${pct1.toFixed(0)}% de toda la varianza. Podrías descartar PC2 y proyectar los datos sobre la línea roja sin perder casi nada de información relevante.`;
+        } else {
+            document.getElementById('expBox').innerText = `💡 Estructura bidimensional. PC1 captura un ${pct1.toFixed(0)}% y PC2 un ${pct2.toFixed(0)}%. Para no perder fidelidad en este set de datos, necesitas ambos componentes para describir la distribución de las muestras.`;
+        }
+    }
+
+    function loadPreset(type) {
+        resetCanvas();
+        const pts = [];
+
+        if (type === 'linear') {
+            // Datos altamente correlacionados linealmente
+            for (let i = 0; i < 15; i++) {
+                const base = 100 + i * 28;
+                pts.push({ x: base, y: base * 0.7 + 60 + (Math.random() * 30 - 15) });
+            }
+        } else if (type === 'circular') {
+            // Distribución esférica u homogénea (varianza similar en ambas direcciones)
+            const cx = width / 2;
+            const cy = height / 2;
+            for (let i = 0; i < 24; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 130;
+                pts.push({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius });
+            }
+        } else if (type === 'clusters') {
+            // Dos clústers o grupos de datos separados
+            for (let i = 0; i < 10; i++) {
+                pts.push({ x: 150 + Math.random() * 60, y: 150 + Math.random() * 60 });
+                pts.push({ x: 420 + Math.random() * 60, y: 350 + Math.random() * 60 });
+            }
+        } else if (type === 'outlier') {
+            // Datos con una tendencia fuerte y un punto atípico lejano que altera el vector
+            for (let i = 0; i < 12; i++) {
+                const base = 150 + i * 20;
+                pts.push({ x: base, y: 250 + (Math.random() * 20 - 10) });
+            }
+            // El outlier alejado
+            pts.push({ x: 300, y: 80 });
+        }
+
+        points = pts;
+        calculatePCA();
+    }
+
+    // Dibujar estado inicial vacío
+    drawGrid();
+</script>
+</body>
+</html>

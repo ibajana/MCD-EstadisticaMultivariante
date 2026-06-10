@@ -1,0 +1,139 @@
+---
+title: "Librerías básicas de R para análisis de datos"
+author: "Curso de Datos Multivariantes"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    theme: readable
+---
+
+# Introducción
+
+En esta parte del curso vamos a utilizar algunas librerías básicas de R que nos ayudarán a trabajar con datos, construir gráficos, organizar información y practicar con bases de datos de ejemplo.
+
+Las librerías que usaremos son:
+
+```{r, message=FALSE, warning=FALSE}
+library(ggplot2)   # Graficación
+library(magrittr)  # Pipes
+library(dplyr)     # Manipulación de datos
+library(datasets)  # Bases de datos de ejemplo
+```
+
+# 1. `ggplot2`: graficación de datos
+
+La librería `ggplot2` sirve para crear gráficos estadísticos de forma ordenada y estética. Permite construir visualizaciones a partir de capas. Primero se define la base de datos, luego las variables que irán en los ejes y finalmente el tipo de gráfico.
+
+Esta librería resulta muy útil porque muchas veces los patrones de los datos se entienden mejor mediante una visualización.
+
+## Ejemplo
+
+```{r}
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point()
+```
+
+Este código genera un gráfico de dispersión entre el peso del vehículo (`wt`) y el rendimiento en millas por galón (`mpg`).
+
+Una forma sencilla de explicarlo en clase sería:
+
+> `ggplot2` nos permite transformar una tabla de datos en una visualización. Es una herramienta clave porque muchas veces entendemos mejor los patrones cuando los vemos en un gráfico.
+
+# 2. `magrittr`: uso de pipes
+
+La librería `magrittr` permite usar operadores conocidos como *pipes*. El más utilizado es `%>%`, que ayuda a leer el código como una secuencia de pasos.
+
+En lugar de escribir un código anidado y difícil de leer, podemos organizar las instrucciones de forma más clara.
+
+## Código menos legible
+
+```{r}
+summary(select(filter(mtcars, cyl == 4), mpg, hp))
+```
+
+## Código usando pipe `%>%`
+
+```{r}
+mtcars %>%
+  filter(cyl == 4) %>%
+  select(mpg, hp) %>%
+  summary()
+```
+
+Este código se puede leer así:
+
+> Tome la base `mtcars`, filtre los autos con 4 cilindros, seleccione las variables `mpg` y `hp`, y luego obtenga un resumen.
+
+## Pipe `%$%`
+
+También existe el operador `%$%`, que permite usar directamente las columnas de una base dentro de una función.
+
+```{r}
+mtcars %$%
+  cor(mpg, hp)
+```
+
+Este código calcula la correlación entre `mpg` y `hp` sin necesidad de escribir `mtcars$mpg` y `mtcars$hp`.
+
+Una forma sencilla de explicarlo en clase sería:
+
+> `magrittr` nos permite escribir código más ordenado y fácil de leer. Los pipes ayudan a representar el análisis como una secuencia lógica de pasos.
+
+# 3. `dplyr`: manipulación de datos
+
+La librería `dplyr` sirve para limpiar, transformar, resumir y organizar bases de datos. Es una de las librerías más usadas en análisis de datos con R.
+
+Sus funciones principales son:
+
+| Función | Uso |
+|---|---|
+| `filter()` | Filtra filas |
+| `select()` | Selecciona columnas |
+| `mutate()` | Crea nuevas variables |
+| `arrange()` | Ordena datos |
+| `summarise()` | Calcula resúmenes |
+| `group_by()` | Agrupa datos |
+
+## Ejemplo
+
+```{r}
+mtcars %>%
+  group_by(cyl) %>%
+  summarise(promedio_mpg = mean(mpg))
+```
+
+Este código calcula el rendimiento promedio de los autos según el número de cilindros.
+
+Una forma sencilla de explicarlo en clase sería:
+
+> `dplyr` nos permite trabajar una base de datos como si estuviéramos ordenando una tabla: filtramos casos, seleccionamos variables, creamos columnas nuevas y calculamos resúmenes.
+
+# 4. `datasets`: bases de datos de ejemplo
+
+La librería `datasets` viene incluida en R. Contiene bases de datos listas para practicar, como `mtcars`, `iris`, `airquality`, `faithful` y otras.
+
+Esto permite aprender funciones de R sin tener que cargar archivos externos al inicio del curso.
+
+## Ejemplo
+
+```{r}
+data(mtcars)
+head(mtcars)
+```
+
+La base `mtcars` contiene información de diferentes modelos de autos, como peso, consumo, cilindros y potencia.
+
+
+> `datasets` nos da bases de datos de práctica. Esto es útil porque nos permite aprender funciones de R sin depender todavía de archivos externos.
+
+# Resumen de las librerías
+
+| Librería | ¿Para qué sirve? | Ejemplo de uso |
+|---|---|---|
+| `ggplot2` | Crear gráficos estadísticos | Gráficos de dispersión, barras, histogramas |
+| `magrittr` | Conectar pasos mediante pipes | `%>%`, `%$%` |
+| `dplyr` | Manipular y resumir datos | Filtrar, seleccionar, agrupar, resumir |
+| `datasets` | Usar bases de datos de ejemplo | `mtcars`, `iris`, `airquality` |
+
