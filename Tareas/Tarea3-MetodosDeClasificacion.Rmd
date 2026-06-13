@@ -1,0 +1,358 @@
+---
+title: "Actividad Aplicada: Riesgo Crediticio"
+subtitle: "Regresión Logística vs. Análisis Discriminante Lineal"
+author:
+  - "Kevin Campuzano"
+  - "Luis Ugarte"
+  - "Manuel Pluas"
+  - "Isaias Bajaña"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    highlight: tango
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.align = "center")
+```
+
+# Introducción
+
+El objetivo es predecir si un cliente entra en **default** (incumplimiento de pago).
+Se compararán dos métodos de clasificación:
+
+- **Regresión Logística Binaria**
+- **Análisis Discriminante Lineal (LDA)**
+
+$$Y = \begin{cases} 1 & \text{default = Yes} \\ 0 & \text{default = No} \end{cases}$$
+
+---
+
+# Librerías
+
+```{r librerias}
+library(ISLR2)       # Base de datos Default
+library(MASS)        # LDA
+library(tidyverse)   # Manipulación y visualización
+library(caret)       # Matrices de confusión
+library(knitr)       # Tablas
+library(kableExtra)  # Tablas estilizadas
+library(ggplot2)
+library(patchwork)   # Combinar gráficas
+
+set.seed(42)
+```
+
+---
+
+# 1. Exploración de la Variable `default`
+
+```{r exploracion}
+data("Default")
+
+# Resumen general
+glimpse(Default)
+```
+
+```{r tabla-frecuencias}
+# Frecuencias absolutas y relativas
+Default %>%
+  count(default) %>%
+  mutate(
+    Porcentaje = round(n / sum(n) * 100, 2),
+    Etiqueta   = paste0(n, " (", Porcentaje, "%)")
+  ) %>%
+  kable(
+    col.names = c("Default", "Frecuencia", "Porcentaje (%)", "Resumen"),
+    caption   = "Tabla 1. Distribución de la variable respuesta"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+```{r graficas-exploracion, fig.width=12, fig.height=5}
+# Distribución de default
+p1 <- ggplot(Default, aes(x = default, fill = default)) +
+  geom_bar(width = 0.5, color = "white") +
+  scale_fill_manual(values = c("#2ecc71", "#e74c3c")) +
+  labs(title = "Distribución de Default", x = "Default", y = "Frecuencia") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+# Balance por grupo
+p2 <- ggplot(Default, aes(x = default, y = balance, fill = default)) +
+  geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
+  scale_fill_manual(values = c("#2ecc71", "#e74c3c")) +
+  labs(title = "Balance por grupo de Default", x = "Default", y = "Balance") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+# Income por grupo
+p3 <- ggplot(Default, aes(x = default, y = income, fill = default)) +
+  geom_boxplot(alpha = 0.7, outlier.size = 0.8) +
+  scale_fill_manual(values = c("#2ecc71", "#e74c3c")) +
+  labs(title = "Ingreso por grupo de Default", x = "Default", y = "Income") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+p1 | p2 | p3
+```
+
+```{r proporcion-estudiantes}
+# Proporción de default por condición de estudiante
+Default %>%
+  group_by(student, default) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(student) %>%
+  mutate(Porcentaje = round(n / sum(n) * 100, 2)) %>%
+  kable(
+    col.names = c("Estudiante", "Default", "Frecuencia", "Porcentaje (%)"),
+    caption   = "Tabla 2. Default según condición de estudiante"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+**Observaciones clave:**
+
+- Solo el **`r round(mean(Default$default == "Yes") * 100, 2)`%** de los clientes incumplió el pago → clases desbalanceadas.
+- Los clientes en default tienen **balances promedio significativamente mayores**.
+- El ingreso muestra menor diferencia entre grupos.
+
+---
+
+# 2. Separación en Entrenamiento y Prueba
+
+```{r split}
+# Convertir default a factor binario 0/1
+Default <- Default %>%
+  mutate(default_bin = ifelse(default == "Yes", 1, 0))
+
+n      <- nrow(Default)
+idx    <- sample(1:n, size = floor(0.7 * n))
+
+train  <- Default[idx, ]
+test   <- Default[-idx, ]
+
+cat("Tamaño del conjunto de entrenamiento:", nrow(train), "\n")
+cat("Tamaño del conjunto de prueba:       ", nrow(test),  "\n")
+cat("\nProporción de default en entrenamiento:",
+    round(mean(train$default == "Yes") * 100, 2), "%\n")
+cat("Proporción de default en prueba:      ",
+    round(mean(test$default  == "Yes") * 100, 2), "%\n")
+```
+
+Se usó una partición **70% entrenamiento / 30% prueba** con semilla `set.seed(42)` para reproducibilidad.
+
+---
+
+# 3. Regresión Logística Binaria
+
+## Ajuste del modelo
+
+```{r logistica}
+modelo_log <- glm(
+  default_bin ~ student + balance + income,
+  data   = train,
+  family = binomial(link = "logit")
+)
+
+summary(modelo_log)
+```
+
+## Interpretación de coeficientes
+
+```{r odds-ratio}
+# Odds Ratios con intervalos de confianza
+or_table <- exp(cbind(OR = coef(modelo_log), confint(modelo_log)))
+
+or_table %>%
+  as.data.frame() %>%
+  rownames_to_column("Variable") %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4))) %>%
+  kable(
+    col.names = c("Variable", "Odds Ratio", "IC 2.5%", "IC 97.5%"),
+    caption   = "Tabla 3. Odds Ratios — Regresión Logística"
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+## Predicciones y matriz de confusión
+
+```{r prediccion-logistica}
+# Probabilidades predichas
+prob_log <- predict(modelo_log, newdata = test, type = "response")
+
+# Clasificación con umbral 0.5
+pred_log <- ifelse(prob_log >= 0.5, "Yes", "No") %>%
+  factor(levels = c("No", "Yes"))
+
+# Matriz de confusión
+cm_log <- confusionMatrix(pred_log, test$default,
+                           positive = "Yes")
+cm_log
+```
+
+```{r visualizar-cm-log, fig.width=5, fig.height=4}
+# Visualización de la matriz de confusión
+cm_log_df <- as.data.frame(cm_log$table)
+
+ggplot(cm_log_df, aes(x = Reference, y = Prediction, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 1) +
+  geom_text(aes(label = Freq), size = 8, fontface = "bold") +
+  scale_fill_gradient(low = "#ecf0f1", high = "#e74c3c") +
+  labs(title = "Matriz de Confusión — Regresión Logística",
+       x = "Real", y = "Predicho") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+```
+
+---
+
+# 4. Análisis Discriminante Lineal (LDA)
+
+## Ajuste del modelo
+
+```{r lda}
+modelo_lda <- lda(
+  default ~ student + balance + income,
+  data = train
+)
+
+modelo_lda
+```
+
+```{r lda-plot, fig.width=6, fig.height=4}
+# Scores discriminantes en entrenamiento
+lda_values <- predict(modelo_lda, train)
+
+lda_scores <- data.frame(
+  LD1     = lda_values$x[, 1],
+  default = train$default
+)
+
+ggplot(lda_scores, aes(x = LD1, fill = default)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = c("#2ecc71", "#e74c3c")) +
+  labs(title = "Distribución del Score Discriminante (LDA)",
+       x = "LD1", y = "Densidad", fill = "Default") +
+  theme_minimal(base_size = 13)
+```
+
+## Predicciones y matriz de confusión
+
+```{r prediccion-lda}
+pred_lda_obj <- predict(modelo_lda, newdata = test)
+pred_lda     <- pred_lda_obj$class
+
+cm_lda <- confusionMatrix(pred_lda, test$default,
+                           positive = "Yes")
+cm_lda
+```
+
+```{r visualizar-cm-lda, fig.width=5, fig.height=4}
+cm_lda_df <- as.data.frame(cm_lda$table)
+
+ggplot(cm_lda_df, aes(x = Reference, y = Prediction, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 1) +
+  geom_text(aes(label = Freq), size = 8, fontface = "bold") +
+  scale_fill_gradient(low = "#ecf0f1", high = "#3498db") +
+  labs(title = "Matriz de Confusión — LDA",
+       x = "Real", y = "Predicho") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+```
+
+---
+
+# 5. Comparación de Modelos
+
+```{r comparacion-tabla}
+# Extraer métricas de cada modelo
+extraer_metricas <- function(cm, nombre) {
+  data.frame(
+    Modelo         = nombre,
+    Accuracy       = round(cm$overall["Accuracy"]        * 100, 2),
+    Sensibilidad   = round(cm$byClass["Sensitivity"]     * 100, 2),
+    Especificidad  = round(cm$byClass["Specificity"]     * 100, 2)
+  )
+}
+
+tabla_comp <- bind_rows(
+  extraer_metricas(cm_log, "Regresión Logística"),
+  extraer_metricas(cm_lda, "LDA")
+)
+
+tabla_comp %>%
+  kable(
+    col.names = c("Modelo", "Accuracy (%)", "Sensibilidad (%)", "Especificidad (%)"),
+    caption   = "Tabla 4. Comparación de métricas entre modelos",
+    row.names = FALSE
+  ) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "bordered"),
+                full_width = FALSE) %>%
+  row_spec(which.max(tabla_comp$Sensibilidad), background = "#ffeaa7",
+           bold = TRUE)
+```
+
+```{r grafica-comparacion, fig.width=9, fig.height=5}
+# Gráfica comparativa de métricas
+tabla_long <- tabla_comp %>%
+  select(Modelo, Accuracy, Sensibilidad, Especificidad) %>%
+  pivot_longer(-Modelo, names_to = "Métrica", values_to = "Valor")
+
+ggplot(tabla_long, aes(x = Métrica, y = Valor, fill = Modelo)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.6,
+           color = "white") +
+  scale_fill_manual(values = c("#e74c3c", "#3498db")) +
+  geom_text(aes(label = paste0(Valor, "%")),
+            position = position_dodge(width = 0.6),
+            vjust = -0.4, size = 3.5, fontface = "bold") +
+  ylim(0, 110) +
+  labs(title  = "Comparación de métricas: Regresión Logística vs. LDA",
+       x      = "Métrica",
+       y      = "Valor (%)",
+       fill   = "Modelo") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "top")
+```
+
+---
+
+# Conclusiones
+
+```{r conclusiones-dinamicas, echo=FALSE}
+acc_log  <- tabla_comp$Accuracy[1]
+acc_lda  <- tabla_comp$Accuracy[2]
+sens_log <- tabla_comp$Sensibilidad[1]
+sens_lda <- tabla_comp$Sensibilidad[2]
+esp_log  <- tabla_comp$Especificidad[1]
+esp_lda  <- tabla_comp$Especificidad[2]
+
+mejor_acc  <- ifelse(acc_log  >= acc_lda,  "Regresión Logística", "LDA")
+mejor_sens <- ifelse(sens_log >= sens_lda, "Regresión Logística", "LDA")
+mejor_esp  <- ifelse(esp_log  >= esp_lda,  "Regresión Logística", "LDA")
+```
+
+| Dimensión | Resultado |
+|-----------|-----------|
+| **Accuracy** | `r mejor_acc` (`r max(acc_log, acc_lda)`%) |
+| **Sensibilidad (detectar defaults)** | `r mejor_sens` (`r max(sens_log, sens_lda)`%) |
+| **Especificidad (evitar falsas alarmas)** | `r mejor_esp` (`r max(esp_log, esp_lda)`%) |
+
+**Interpretación:**
+
+1. **Sensibilidad es la métrica más crítica** en riesgo crediticio: un falso negativo (no detectar un cliente que *sí* incumplirá) tiene mayor costo financiero que un falso positivo.
+
+2. Ambos modelos muestran alta exactitud global, pero esto se debe al **desbalance de clases** (~97% No default). La sensibilidad es el indicador más discriminante entre modelos.
+
+3. **`r mejor_sens`** obtiene mejor capacidad para detectar defaults reales, por lo que sería el modelo preferido en este contexto de riesgo crediticio.
+
+4. LDA asume normalidad multivariante y covarianzas iguales entre grupos; la Regresión Logística es más flexible y menos restrictiva en sus supuestos, lo que puede explicar diferencias en sensibilidad.
+
+---
+
+*Actividad elaborada con la base `Default` del paquete `ISLR2`.*

@@ -1,0 +1,70 @@
+---
+title: "Tarea 1 - Estructuras Latentes"
+subtitle: "Estadística Multivariante"
+author: 
+  - "Kevin Campuzano"
+  - "Luis Ugarte"
+  - "Manuel Pluas"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Carga de librerías y datos
+
+```{r message=FALSE, warning=FALSE}
+install.packages("dplyr", repos = "https://cloud.r-project.org")
+library(dplyr)
+library(factoextra)
+
+data("USArrests")
+summary(USArrests)
+head(USArrests)
+```
+
+## Selección de variables numéricas
+
+Separamos las variables cualitativas de las cuantitativas.
+
+```{r}
+dataset <- USArrests %>% 
+  select(where(is.numeric))
+
+summary(dataset)
+```
+
+## Matriz de correlación
+
+Antes de continuar, revisamos la matriz de correlación.
+
+```{r}
+cor(dataset)
+```
+
+Al revisar la matriz de correlación podemos ver que la variable de asesinato (Murder) tiene una alta correlación con Assault. Además, la variable UrbanPop tiene la correlación más débil con el resto de variables.
+
+## Análisis de Componentes Principales (PCA)
+
+Aplicamos PCA con y sin escalamiento para comparar resultados.
+
+```{r}
+pca1 <- prcomp(dataset, scale. = FALSE)
+pca2 <- prcomp(dataset, scale. = TRUE)
+
+summary(pca1)
+summary(pca2)
+```
+
+Sin escalar (`pca1`), PC1 concentra el **96.55%** de la variabilidad total. Esto ocurre porque Assault tiene valores mucho más grandes que las otras variables y domina el análisis.
+
+Con datos escalados (`pca2`), PC1 explica el **62%** y PC2 el **24.74%**, lo que da una visión más equilibrada de la estructura de los datos.
+
+## Revisión de pesos por componente (Rotation)
+
+```{r}
+pca2$rotation
+```
+
+Analizando la matriz de rotación del PCA escalado:
+
+- **PC1** está dominado por `Assault`, `Rape` y `Murder` → representa la **criminalidad general**.
+- **PC2** está dominado por `UrbanPop` → representa el **nivel de urbanización**.

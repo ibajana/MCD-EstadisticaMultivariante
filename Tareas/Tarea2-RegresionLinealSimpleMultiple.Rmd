@@ -1,0 +1,6 @@
+# - ¿Qué variables son estadísticamente significativas?
+
+# - ¿Cómo interpretan el coeficiente más importante?
+# - ¿Hay evidencia de heterocedasticidad?
+# - ¿Cambian las conclusiones usando errores robustos?
+# - ¿El modelo es útil para explicar la variable respuesta?
