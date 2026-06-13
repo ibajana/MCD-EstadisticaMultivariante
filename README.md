@@ -11,6 +11,7 @@ MCD-EstadisticaMultivariante/
 ├── 1. Estadistica Inferencial/     # Unidad 0–1: introducción y correlación
 ├── 2. Correlacion/                 # Unidad 1 (continuación): PCA
 ├── 3. Regresion Lineal/            # Unidad 2: regresión simple y múltiple
+├── 4. Regresion Logistica/         # Unidad 3: logística, LDA y clustering
 ├── Datasets/                       # Bases de datos utilizadas en clase
 ├── Libro/                          # Bibliografía del curso (ISLR)
 ├── Simuladores/                    # Herramientas interactivas HTML
@@ -66,6 +67,24 @@ MCD-EstadisticaMultivariante/
 
 ---
 
+### Unidad 3 — Regresión Logística, LDA y Clustering (`4. Regresion Logistica/`)
+
+| Archivo | Descripción |
+|---|---|
+| `Sesion-3-1.R` | Regresión logística, LDA y análisis de clúster |
+| `Unidad 3.pdf` | Material de la unidad |
+| `Análisis Cluster.pdf` | Material complementario sobre clustering |
+
+**Temas cubiertos:**
+
+- **Regresión logística binaria:** `P(am = 1 | wt, hp)` con `mtcars`; odds ratios, umbral de clasificación, sensibilidad y especificidad
+- **LDA:** frontera de decisión lineal entre *versicolor* y *virginica* con `iris`; visualización de regiones de clasificación
+- **K-means:** escalado, centros, comparación con etiquetas reales, método del codo (WSS)
+- **Clustering jerárquico:** distancias euclidianas, método de Ward D2, dendrograma, `cutree()`
+- **Variantes:** clustering aglomerativo vs. separativo (`cluster::diana()`)
+
+---
+
 ## Datasets
 
 | Archivo | Descripción |
@@ -94,7 +113,11 @@ Archivos HTML autocontenidos, se abren directamente en el navegador sin necesida
 
 ## Tareas
 
-Carpeta destinada a la entrega de ejercicios y tareas del curso. Se irá poblando a lo largo del semestre.
+| Tarea | Archivo | Tema |
+|---|---|---|
+| Tarea 1 | `Tarea1-EstructurasLatentes.Rmd` | PCA sobre `USArrests` |
+| Tarea 2 | `Tarea2-RegresionLinealSimpleMultiple.Rmd` | Regresión lineal simple y múltiple |
+| Tarea 3 | `Tarea3-MetodosDeClasificacion.Rmd` | Regresión logística vs. LDA — riesgo crediticio |
 
 ---
 
@@ -118,7 +141,9 @@ El curso usa como bibliografía principal:
 **R (≥ 4.1)**
 ```r
 install.packages(c("ggplot2", "dplyr", "magrittr", "readr", "corrplot",
-                   "ISLR2", "lmtest", "sandwich", "car"))
+                   "ISLR2", "lmtest", "sandwich", "car",
+                   "MASS", "caret", "kableExtra", "patchwork",
+                   "factoextra", "cluster"))
 ```
 
 **Python (≥ 3.9)**
