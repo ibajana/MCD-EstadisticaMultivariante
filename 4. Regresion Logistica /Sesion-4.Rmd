@@ -1,0 +1,115 @@
+---
+title: "Actividad  - Analisis de clustering"
+subtitle: "Estadística Multivariante"
+author: 
+  - "Kevin Campuzano"
+  - "Luis Ugarte"
+  - "Manuel Pluas"
+  - "Isaias Bajaña"
+date: "`r Sys.Date()`"
+output: html_document
+---
+```{r message=FALSE, warning=FALSE}
+
+library(vegan)
+data(mite)
+data(mite.xy)
+
+?mite.xy
+# Revisar estructura de los datos
+dim(mite)
+head(mite)
+
+dim(mite.xy)
+head(mite.xy)
+
+# Matriz de comunidad
+comunidad <- mite
+
+# Coordenadas de los sitios
+coord <- mite.xy
+
+# Exploración inicial
+summary(comunidad)
+summary(coord)
+
+# Número de especies por sitio
+riqueza <- specnumber(comunidad)
+
+# Abundancia total por sitio
+abundancia_total <- rowSums(comunidad)
+
+# Visualización espacial básica
+plot(coord,
+     pch = 19,
+     col = "darkgreen",
+     main = "Sitios de muestreo",
+     xlab = "Coordenada X",
+     ylab = "Coordenada Y")
+
+# Tamaño del punto proporcional a la riqueza
+plot(coord,
+     pch = 19,
+     cex = riqueza / max(riqueza) * 3,
+     col = "steelblue",
+     main = "Riqueza de especies por sitio",
+     xlab = "Coordenada X",
+     ylab = "Coordenada Y")
+```
+## A partir de aquí, el grupo debe decidir cómo hacer clustering
+### Preguntas guía:
+### 1. ¿Conviene transformar los datos?
+En este caso conviene transformar, esto debido a que tenemos datos que son 0, es decir, hay ausencia de individuos en esos espacios.
+Aclaración: Para este caso utilizamos la funcion decostand de la libreria vegan, que nos ayuda simplifando pasos de obtener la diferencia sobre la raiz cuadrada. 
+
+```{r message=FALSE, warning=FALSE}
+dist_sinEscalar <- vegdist(mite, method = "euclidean")
+
+mite_hell <- decostand(mite, method = "hellinger")
+dist_hell <- vegdist(mite_hell, method = "euclidean")
+
+as.matrix(dist_sinEscalar)[1:3, 1:3]
+as.matrix(dist_hell)[1:3, 1:3]
+clust_hell <- hclust(dist_hell, method="ward.D2")
+```
+
+### 2. ¿Usarían Bray-Curtis, Hellinger, Euclidiana u otra distancia?
+La transformación Hellinger hace que los datos de abundancia sean más adecuados para usar distancia euclidiana. Ademas, ward.D2 suele funcionar bien con distancia euclidiana porque busca formar grupos compactos. Bryan-Cursi hace lo mismo que la distancia euclidiana pero sin la transformacion en caso no contribuye al ejercicio por lo que existe ausencia de datos.
+
+### 3. ¿Aplicarían clustering jerárquico, k-means, PAM u otro método?
+Optamos por clustering jerárquico con el método `ward.D2`. Descartamos k-means porque asume clusters de forma esférica, lo cual es poco realista en datos ecológicos, y porque no produce un dendrograma que permita explorar la jerarquía entre sitios antes de decidir el número de grupos. Además, los datos de abundancia con muchos ceros no se comportan bien bajo los supuestos de k-means, independientemente de la transformación aplicada.
+
+PAM sería una alternativa válida y más robusta ante valores atípicos, pero para este ejercicio preferimos la visualización jerárquica que ofrece el dendrograma. `ward.D2` es especialmente adecuado aquí porque minimiza la varianza intra-cluster, produciendo grupos compactos e interpretables, y funciona correctamente con la distancia euclidiana aplicada sobre datos transformados con Hellinger.
+
+### 4. ¿Cuántos clusters proponen?
+Propusimos 3 clusters. Al ver el dendrograma, el corte en 3 es donde se nota una separación clara sin fragmentar demasiado los grupos. Con 2 clusters queda muy general, y con 4 empiezan a aparecer grupos muy pequeños que son difíciles de interpretar. El corte en 3 da un balance entre simplicidad y detalle, y tiene más sentido ecológicamente porque permite distinguir al menos tres tipos de hábitat o condiciones ambientales distintas dentro del sitio de muestreo.
+
+```{r message=FALSE, warning=FALSE}
+plot(clust_hell,
+     main = "Corte en 2 clusters",
+     xlab = "Sitios",
+     sub = "")
+rect.hclust(clust_hell, k = 2, border = "red")
+
+plot(clust_hell,
+     main = "Corte en 3 clusters",
+     xlab = "Sitios",
+     sub = "")
+rect.hclust(clust_hell, k = 3, border = "red")
+
+plot(clust_hell,
+     main = "Corte en 4 clusters",
+     xlab = "Sitios",
+     sub = "")
+rect.hclust(clust_hell, k = 4, border = "red")
+
+```
+
+### 5. ¿Cómo se interpretan ecológicamente los clusters?
+Los 3 clusters que obtuvimos se pueden interpretar como zonas con condiciones ambientales distintas dentro del sitio de muestreo:
+
+- **Cluster 1:** sitios con alta abundancia y diversidad de ácaros
+- **Cluster 2:** sitios en una situación intermedia, donde las condiciones no son ni muy favorables ni muy restrictivas. P
+- **Cluster 3:** sitios con baja abundancia o dominados por pocas especies.
+
+En resumen, el clustering no solo agrupa sitios similares matemáticamente, sino que refleja un gradiente ambiental real que tiene sentido dentro de la ecología de estos organismos.
