@@ -38,3 +38,4 @@ venv/
 *.log
 *.tmp
 Thumbs.db
+.Rproj.user

@@ -1,0 +1,106 @@
+---
+title: "Heart Attack Analysis & Prediction Dataset Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Heart Attack Analysis & Prediction
+## Por Kevin Campuzano
+
+
+# Introducción
+
+Analizaremos el dataset _heart attact analysis & prediction_, como indica su título es un dataset que corresponde al análisis y predicción de ataque cardíaco. 
+
+Un ataque cardíaco se produce cuando se bloquea el flujo de sangre que va al corazón. Por lo general, el bloqueo es una acumulación de grasa, colesterol y otras sustancias que forman una placa en las arteris que alimentan el corazón(arterias coronarias).A veces, una placa puede romperse y formar un coágulo que bloquea el flujo de sangre. La interrupción del flujo de sangre puede dañar o destruir una parte del músculo cardíaco.
+
+El ataque cardíaco, tambien llamado infarto de miocardio, puede resultar mortal, pero el tratamiento ha mejorado mucho con los años.
+
+Ciertos factores contribuyen a la acumulación de depósitos de grasa no deseada (ateroesclerosis) que estrecha las arterias en todo el cuerpo. Puedes mejorar o eliminar varios de estos factores para reducir las posibilidades de tener un primer ataque cardíaco u otros. 
+
+**Entre los factores de riesgo de un ataque cardíaco se incluye los siguientes:**
+- **Edad.**  Los hombres de 45 años o más y las mujeres de 55 años o más tienen una mayor probabilidad de tener un ataque cardíaco que los hombres y las mujeres más jóvenes.
+- **Consumo de tabaco.** Se incluye fumar y la exposición por largo tiempo al tabaquismo pasivo.
+- **Presión arterial alta.** Con el tiempo, la presión arterial alta pude dañar las arterias que van hacia el corazón. Cuando la presión arterial alta se produce junto con otras enfermedades, como la obesidad, el colesterol alto o la diabetes, aumenta aún más el riesgo.
+- **Niveles altos de colesterol o triglicéridos en sangre.** Es muy probable que un nivel alto de colesterol de lipoproteínas de baja densidad (el colesterol "malo") estreche las arterias. Un nivel alto de triglicéridos, un tipo de grasa de la sangre que proviene de la dieta, también aumenta el riesgo de un ataque cardíaco. No obstante, un nivel alto de colesterol de lipoproteínas de alta densidad (el colesterol "bueno") puede reducir el riesgo.
+- **Obesidad.** La obesidad está relacionada con el nivel alto de colesterol en sangre, el nivel alto de triglicéridos, la presión arterial alta y la diabetes. Reducir simplemente un 10 % del peso corporal puede reducir el riesgo.
+- **Diabetes.** No producir suficiente insulina (una hormona secretada por el páncreas) o no responder a la insulina de manera adecuada provoca que los niveles de glucosa en la sangre del cuerpo aumenten, lo que incrementa el riesgo de tener un ataque cardíaco.
+- **Síndrome metabólico.** Este síndrome se manifiesta cuando tienes obesidad, presión arterial alta y nivel alto de glucosa en la sangre. El síndrome metabólico hace que seas dos veces más propenso a tener una enfermedad cardíaca que las personas que no tienen este síndrome.
+- **Antecedentes familiares de ataques cardíacos.** Si tus hermanos, padres o abuelos han tenido ataques cardíacos a una temprana edad (antes de los 55 años en los hombres y de los 65 años en las mujeres), puedes tener un mayor riesgo.
+- **Falta de actividad física.** Un estilo de vida inactivo contribuye a tener un nivel alto de colesterol en la sangre y obesidad. Las personas que hacen ejercicios con regularidad tienen un mejor estado cardiovascular; incluso tienen una presión arterial más baja.
+- **Estrés.** Es posible que respondas al estrés de maneras que pueden aumentar el riesgo de tener un ataque cardíaco.
+- **Consumo de drogas ilegales.** Consumir drogas estimulantes, como la cocaína o las anfetaminas, puede provocar un espasmo de las arterias coronarias y causar un ataque cardíaco.
+- **Antecedentes de preeclampsia.** Esta afección causa presión arterial alta durante el embarazo y aumenta el riesgo de tener enfermedades cardíacas de por vida.
+- **Enfermedad autoinmunitaria.** Los trastornos como la artritis reumatoidea o el lupus pueden aumentar el riesgo de tener un ataque cardíaco.
+
+
+**Los signos y síntomas de un ataque cardíaco incluyen[1]**:
+- Presión, opresión, dolor, o sensación de compresión o dolor en el pecho o en los brazos, que puede propagarse hacia el cuello, la mandíbula o la espalda.
+- Náuseas, indigestión, ardor de estómago o dolor abdominal
+- Falta de aire
+- Sudor frío
+- Fatiga
+- Aturdimiento o mareos repentinos
+
+
+
+# Descripción de datos
+
+El dataset de _heart attact analysis & prediction_ contiene  nos brinda los siguientes 304 pacientes que sufrieron un ataque cardiaco. De cada paciente tenemos 15 datos esenciales que son:
+
+- **age:** Edad de la persona(en años)
+- **sex:** Sexo de la persona (1 = masculino; 0 = femenino)
+- **cp:** Dolor de pecho (1 = tipíca angina; 2 = angina atipica; 3 = dolor no anginoso; 0 = asintomatico).
+- **trtbps:** Presión arterial en reposo(en mm Hg) en la admisión del hospital.
+- **chol:** Nivel de colesterol(mg/dl) obtenido a través del sensor de IMC(Índice de masa corporal).
+- **fbs:** Azucar en la sangre en ayunas >  120 mg/dl.
+- **restecg:** Resultados electrocardiográficos en reposo (1 = normal; 2 =  tener anomalía en la onda ST-T, 0 = hipertrofia).
+- **thalachh:** Frecuencia cardíaca máxima alcanzada.
+- **exng:** Angina inducida por ejercicio(1 = sí; 0 = no).
+- **oldpeak:** Depresión del ST inducida por el ejercicio en relación con el reposo
+- **slp:** La pendiente del segmento ST de ejercicio pico (2 = ascendente; 1 = plano; 0 = descendente).
+- **caa:** Número de vasos principales (0-3) coloreados por la floración.
+- **thall:** 2 = normal; 1 = defecto fijo; 3 = defecto reversible.
+- **output:** El atributo de predicción: diagnóstico de enfermedad cardíaca (estado angiográfico de la enfermedad) (Valor 0 = <estrechamiento del diámetro; Valor 1 => 50% del estrechamiento del diámetro)
+
+
+# Preparación de datos
+La preparación de datos se encarga de la selección, limpieza y transformación de los datos necesarios. 
+Emperemos cargando la data en una variable.
+```{r}
+library(tidyverse)
+data_raw <- read_csv('./Heart_Attack_Analysis_&_Prediction_Dataset/heart.csv', na = c('NA', 'n/a', '', ' '), n_max = 10000)
+summary(data_raw)
+```
+
+Ahora asignemos el valor corecto a las variables discretas, estas variables son: sexo, cp, fbs, restecg, exng, slp, thall.
+```{r}
+bc_data$classes <- ifelse(bc_data$classes == "2", "benign",
+                          ifelse(bc_data$classes == "4", "malignant", NA))
+
+data_raw$sex <- ifelse(data_raw$sex == 1, "H", "M")
+data_raw$cp <- ifelse(data_raw$cp == 1, "tipica", 
+                      ifelse(data_raw$cp == 2, "atipia",
+                        ifelse(data_raw$cp == 3, "no anginoso", "asintomatico")))
+data_raw$fbs <- ifelse(data_raw$fbs == 1, "azucar_sangre", "no_azucar_sangre")
+data_raw$restecg <- ifelse(data_raw$restecg == 1, "normal",
+                           ifelse(data_raw$cp == 2, "anomalia","hipertrofia"))
+
+data_raw$sex <- ifelse(data_raw$sex == 1, "Hombre", "Mujer")
+
+data_raw$slp <- ifelse(data_raw$slp == 1, "Hombre", "Mujer")
+data_raw$thall <- ifelse(data_raw$thall. == 1, "Hombre", "Mujer")
+
+```
+
+# Procesamiento de datos 
+
+# Resultados 
+
+# Conclusiones
+
+# Bibliografía
+1 . [Ataque cardíaco, MAYO Clinic](https://www.mayoclinic.org/es-es/diseases-conditions/heart-attack/symptoms-causes/syc-20373106)
+
+
