@@ -74,7 +74,7 @@ data_raw <- read_csv('./Heart_Attack_Analysis_&_Prediction_Dataset/heart.csv', n
 summary(data_raw)
 ```
 
-Ahora asignemos el valor corecto a las variables discretas, estas variables son: sexo, cp, fbs, restecg, exng, slp, thall.
+Ahora asignemos el valor correcto a las variables discretas, estas variables son: sexo, cp, fbs, restecg, exng, slp, thall.
 ```{r}
 bc_data$classes <- ifelse(bc_data$classes == "2", "benign",
                           ifelse(bc_data$classes == "4", "malignant", NA))
@@ -95,7 +95,12 @@ data_raw$thall <- ifelse(data_raw$thall. == 1, "Hombre", "Mujer")
 ```
 
 # Procesamiento de datos 
-
+library(corrplot)
+Mat_correlacion <- advertising %>% cor
+corrplot(Mat_correlacion,type="upper",diag = FALSE)
+?corrplot
+corrplot(Mat_correlacion,type="upper", order="hclust",diag = FALSE)
+corrplot(Mat_correlacion,type="upper", order="hclust",method = "number")
 # Resultados 
 
 # Conclusiones

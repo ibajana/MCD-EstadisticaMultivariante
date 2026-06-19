@@ -1,0 +1,526 @@
+---
+title: "Análisis de Riesgo de Infarto Cardíaco"
+author:
+  - "Kevin Campuzano"
+  - "Luis Ugarte"
+  - "Isaias Bajaña"
+  - "Manuel Pluas"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_knit$set(root.dir = normalizePath(dirname(knitr::current_input())))
+```
+
+```{r librerias}
+library(ggplot2)
+library(psych)
+library(corrplot)
+library(lmtest)
+library(car)
+library(cluster)
+library(MASS)
+```
+
+---
+
+# 1. Carga y limpieza de datos
+
+```{r carga}
+df <- read.csv("Heart_Attack_Analysis_&_Prediction_Dataset/heart.csv")
+str(df)
+dim(df)
+```
+
+## 1.1 Verificación de valores nulos y duplicados
+
+```{r limpieza-nulos}
+sum(is.na(df))
+sum(duplicated(df))
+```
+
+No tenemos filas nulas. Tenemos una fila duplicada.
+
+La talasemia (`thall`) solo puede aceptar valores entre 1 y 3; verificamos si hay ceros, que podrían indicar datos nulos.
+
+```{r limpieza-thall}
+table(df$thall)
+```
+
+Existen dos ceros, los cuales pueden ser datos nulos.
+
+```{r limpieza-aplicar}
+# Quitar duplicados
+df <- df[!duplicated(df), ]
+
+# Tratar los ceros de thall como NA
+df$thall[df$thall == 0] <- NA
+
+# Convertir variables categóricas a factor
+df$sex    <- factor(df$sex)
+df$cp     <- factor(df$cp)
+df$fbs    <- factor(df$fbs)
+df$restecg <- factor(df$restecg)
+df$exng   <- factor(df$exng)
+df$slp    <- factor(df$slp)
+df$thall  <- factor(df$thall)
+df$output <- factor(df$output)
+
+summary(df)
+```
+
+Con los NA en `thall` tenemos dos alternativas: eliminarlos o imputar con la moda. Al ser solo 2 observaciones, optamos por eliminarlas.
+
+```{r limpieza-na}
+df <- df[!is.na(df$thall), ]
+```
+
+---
+
+# 2. Exploración inicial
+
+```{r exploracion-summary}
+summary(df)
+```
+
+Podemos describir las variables como:
+
+- La **edad** va de 29 a 77 años, con promedio de 54.
+- El **sexo** predominante es el masculino (≈68.33% de la muestra).
+- Existen 4 **tipos de dolor de pecho** (`cp`); el tipo 0 (angina típica) es el más frecuente.
+- La **presión arterial** (`trtbps`) va de 94 a 200, con promedio de 131 mmHg.
+- El **colesterol** va de 126 a 564 mg/dl, con promedio de 246 mg/dl.
+- La **glucosa en ayunas** (`fbs`) indica si el paciente tenía glucosa > 120 mg/dl; el 85.33% no la tenía elevada.
+- En el **electrocardiograma** (`restecg`): 48.67% normal, 50% con anomalía, 1.33% con hipertrofia ventricular izquierda.
+- La **frecuencia cardíaca máxima** (`thalachh`) va de 71 a 202 lpm, con media de 149.
+- El 67.33% no presentó **angina inducida por ejercicio** (`exng`).
+
+---
+
+# 3. Distribución de variables cuantitativas
+
+## 3.1 Histogramas
+
+```{r hist-age}
+ggplot(df, aes(x = age)) +
+  geom_histogram(bins = 20, fill = "steelblue", color = "white") +
+  labs(title = "Distribución de la edad",
+       x = "Edad (años)", y = "Frecuencia") +
+  theme_minimal()
+```
+
+La mayor cantidad de pacientes tiene alrededor de 57 años; parece una variable con distribución aproximadamente normal.
+
+```{r hist-chol}
+ggplot(df, aes(x = chol)) +
+  geom_histogram(bins = 20, fill = "steelblue", color = "white") +
+  labs(title = "Distribución del colesterol",
+       x = "Colesterol", y = "Frecuencia") +
+  theme_minimal()
+```
+
+La mayoría de personas tenían un colesterol menor a 250 mg/dl. Se observa un posible outlier con valor muy elevado. La variable está sesgada a la derecha.
+
+```{r hist-thalachh}
+ggplot(df, aes(x = thalachh)) +
+  geom_histogram(bins = 20, fill = "steelblue", color = "white") +
+  labs(title = "Distribución de la frecuencia cardíaca máxima",
+       x = "Frecuencia cardíaca (lpm)", y = "Frecuencia") +
+  theme_minimal()
+```
+
+La mayor parte de los pacientes tenía una frecuencia cardíaca entre 160 y 170 lpm. Esta variable está sesgada a la izquierda.
+
+```{r hist-oldpeak}
+ggplot(df, aes(x = oldpeak)) +
+  geom_histogram(bins = 20, fill = "steelblue", color = "white") +
+  labs(title = "Distribución de la depresión del segmento ST",
+       x = "Depresión del segmento ST", y = "Frecuencia") +
+  theme_minimal()
+```
+
+La depresión del segmento ST está claramente sesgada a la derecha y presenta posibles outliers.
+
+## 3.2 Boxplots
+
+```{r boxplots-outliers}
+library(patchwork)
+
+p1 <- ggplot(df, aes(y = chol)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Colesterol", y = "mg/dl") +
+  theme_minimal()
+
+p2 <- ggplot(df, aes(y = trtbps)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Presión arterial", y = "mm Hg") +
+  theme_minimal()
+
+p3 <- ggplot(df, aes(y = oldpeak)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Depresión del segmento ST", y = "mm") +
+  theme_minimal()
+
+p1 + p2 + p3 +
+  plot_annotation(title = "Boxplots de variables cuantitativas con outliers")
+```
+
+Los tres boxplots confirman la presencia de outliers en colesterol, presión arterial y depresión del segmento ST.
+
+## 3.3 Variables cuantitativas vs. riesgo de infarto (`output`)
+
+```{r boxplots-output}
+q1 <- ggplot(df, aes(x = output, y = thalachh, fill = output)) +
+  geom_boxplot() +
+  labs(title = "FC máxima", x = "Output", y = "lpm") +
+  theme_minimal() + theme(legend.position = "none")
+
+q2 <- ggplot(df, aes(x = output, y = age, fill = output)) +
+  geom_boxplot() +
+  labs(title = "Edad", x = "Output", y = "Años") +
+  theme_minimal() + theme(legend.position = "none")
+
+q3 <- ggplot(df, aes(x = output, y = oldpeak, fill = output)) +
+  geom_boxplot() +
+  labs(title = "Depresión del segmento ST", x = "Output", y = "mm") +
+  theme_minimal() + theme(legend.position = "none")
+
+q1 + q2 + q3 +
+  plot_annotation(title = "Variables cuantitativas según riesgo de infarto (0 = menor riesgo, 1 = mayor riesgo)")
+```
+
+Quienes tienen mayor riesgo de infarto presentan una frecuencia cardíaca máxima promedio más alta y tienden a ser más jóvenes (entre 45 y 58 años), aunque las edades se solapan bastante. Con gran diferencia, quienes tienen menor depresión del segmento ST presentan mayor riesgo de infarto.
+
+---
+
+# 4. Análisis de correlación
+
+```{r correlacion}
+cuanti <- c("age", "trtbps", "chol", "thalachh", "oldpeak", "caa")
+mat_cor <- cor(df[cuanti])
+round(mat_cor, 2)
+
+corrplot(mat_cor, method = "color", type = "upper",
+         addCoef.col = "black", tl.col = "black",
+         title = "Matriz de correlación de variables cuantitativas",
+         mar = c(0, 0, 1, 0))
+```
+
+Las correlaciones más relevantes son:
+
+- **Edad – FC máxima** (−0.40): a mayor edad, menor frecuencia cardíaca máxima.
+- **Depresión ST – FC máxima** (−0.35): relación negativa moderada.
+- **Edad – número de vasos (caa)** (+0.30): relación positiva moderada.
+
+No existen correlaciones muy altas que indiquen multicolinealidad, lo cual es favorable para la regresión.
+
+---
+
+# 5. Estructuras latentes: Análisis de Componentes Principales (PCA)
+
+Para realizar el PCA estandarizamos las variables, evitando que aquellas con valores grandes dominen los componentes.
+
+```{r pca}
+pca <- prcomp(df[cuanti], scale. = TRUE)
+summary(pca)
+```
+
+Los primeros dos componentes explican solo el 51.69% de la varianza. Para alcanzar el 79% es necesario llegar al cuarto componente, lo que indica que cada variable aporta información relativamente propia y el PCA no permite reducir mucho la dimensionalidad.
+
+## 5.1 Gráfico de sedimentación
+
+```{r scree-plot}
+var_exp <- pca$sdev^2 / sum(pca$sdev^2)
+plot(var_exp, type = "b", pch = 19,
+     xlab = "Componente", ylab = "Proporción de varianza explicada",
+     main = "Gráfico de sedimentación")
+```
+
+```{r autovalores}
+pca$sdev^2
+```
+
+El análisis del codo y el criterio de Kaiser (eigen-value > 1) coinciden en seleccionar los **primeros dos componentes**.
+
+## 5.2 Interpretación de cargas
+
+```{r cargas-pca}
+round(pca$rotation[, 1:2], 3)
+```
+
+- **PC1** (salud cardiovascular): dominado por edad (−0.526), depresión ST (−0.435) y número de vasos (−0.413) con carga negativa, y FC máxima (+0.468) con carga positiva. Un valor negativo indica un perfil de deterioro (mayor edad, más depresión ST, más vasos afectados, menor FC).
+- **PC2** (perfil metabólico-presión): dominado por colesterol (−0.696), presión arterial en reposo (−0.474) y FC máxima (−0.424).
+
+La variable de frecuencia cardíaca máxima es compartida entre ambos componentes.
+
+```{r biplot}
+biplot(pca, scale = 0, cex = 0.6, main = "Biplot: PC1 vs PC2")
+```
+
+---
+
+# 6. Regresión: ¿Qué factores clínicos explican la FC máxima?
+
+## 6.1 Regresión lineal simple
+
+```{r rls}
+modelo_fc_age <- lm(thalachh ~ age, data = df)
+summary(modelo_fc_age)
+```
+
+El coeficiente de `age` es negativo y significativo al 5%: por cada año adicional, la FC máxima disminuye en aprox. 1 lpm. La edad sola explica el **16%** de la variabilidad de la FC máxima (R² = 0.158).
+
+## 6.2 Regresión lineal múltiple
+
+```{r rlm-completo}
+mod_multiple <- lm(thalachh ~ age + trtbps + chol + oldpeak + caa + exng + cp,
+                   data = df)
+summary(mod_multiple)
+```
+
+Este modelo explica el **34.24%** de la FC máxima (R² ajustado). Las variables significativas al 95% son: edad, depresión del segmento ST, angina inducida por ejercicio y tipos de dolor de pecho. Reducimos el modelo a estas variables.
+
+```{r rlm-reducido}
+mod_multiple <- lm(thalachh ~ age + oldpeak + exng + cp, data = df)
+summary(mod_multiple)
+```
+
+El R² ajustado disminuye solo ligeramente (de 0.3424 a 0.3312), confirmando que las variables eliminadas apenas aportaban al modelo.
+
+## 6.3 Diagnóstico de supuestos
+
+```{r diagnostico}
+par(mfrow = c(2, 2))
+plot(mod_multiple)
+par(mfrow = c(1, 1))
+```
+
+Los gráficos sugieren varianza constante en los errores (homocedasticidad) y cierto alejamiento de la normalidad en las colas.
+
+**Prueba de Breusch-Pagan (homocedasticidad):**
+
+```{r bptest}
+bptest(mod_multiple)
+```
+
+p-value = 0.1033: no rechazamos H₀ → los residuos tienen varianza constante.
+
+**Prueba de Shapiro-Wilk (normalidad):**
+
+```{r shapiro}
+shapiro.test(residuals(mod_multiple))
+```
+
+p-value < 0.05: rechazamos la normalidad de los residuos. Sin embargo, con ~300 observaciones, el Teorema del Límite Central hace que la inferencia sobre los coeficientes sea robusta a desviaciones leves de normalidad.
+
+**VIF (multicolinealidad):**
+
+```{r vif}
+vif(mod_multiple)
+```
+
+VIF bajo en todas las variables: no existe multicolinealidad.
+
+**Durbin-Watson (autocorrelación):**
+
+```{r dwtest}
+dwtest(mod_multiple)
+```
+
+Al tratarse de pacientes independientes sin orden temporal, la autocorrelación no es un supuesto crítico en este modelo.
+
+---
+
+# 7. Métodos de clasificación: Regresión Logística
+
+## 7.1 Partición train / test (70/30)
+
+```{r particion}
+set.seed(27278)
+n <- nrow(df)
+indices <- sample(1:n, size = 0.7 * n)
+train <- df[indices, ]
+test  <- df[-indices, ]
+
+dim(train)  # 210 observaciones
+dim(test)   # 90 observaciones
+```
+
+## 7.2 Modelo logístico
+
+```{r reg-logistica}
+mod_log <- glm(output ~ age + sex + cp + thalachh + exng + oldpeak + caa,
+               data = train, family = binomial)
+summary(mod_log)
+```
+
+Las variables que explican el modelo son: sexo, tipos de dolor de pecho, angina inducida por ejercicio, depresión del segmento ST y número de vasos sanguíneos.
+
+## 7.3 Interpretación de Odds Ratios
+
+```{r odds}
+exp(coef(mod_log))
+exp(cbind(OR = coef(mod_log), confint(mod_log)))
+```
+
+- **Edad (0.96):** por cada año adicional, el riesgo disminuye un 4%.
+- **Sexo masculino (0.32):** ser hombre disminuye la probabilidad de mayor riesgo en ≈69%.
+- **Tipos de dolor de pecho:** aumentan las probabilidades de riesgo de manera importante.
+- **FC máxima (1.02):** por cada lpm adicional, el riesgo aumenta un 1.9%.
+- **Angina por ejercicio:** tenerla disminuye el riesgo en ≈67%.
+- **Depresión ST (0.58):** por cada unidad extra, la probabilidad de mayor riesgo disminuye en ≈42%.
+- **Vasos sanguíneos (caa):** por cada vaso adicional visible, el riesgo disminuye en ≈44%.
+
+## 7.4 Matriz de confusión
+
+```{r matriz-confusion}
+prob <- predict(mod_log, newdata = test, type = "response")
+pred <- ifelse(prob > 0.5, 1, 0)
+pred <- factor(pred, levels = c(0, 1))
+
+matriz_confusion <- table(Predicho = pred, Real = test$output)
+matriz_confusion
+```
+
+```{r metricas}
+exactitud    <- (29 + 46) / 90
+sensibilidad <- 46 / 50
+especificidad <- 29 / 40
+
+cat("Exactitud:    ", round(exactitud * 100, 2), "%\n")
+cat("Sensibilidad: ", round(sensibilidad * 100, 2), "%\n")
+cat("Especificidad:", round(especificidad * 100, 2), "%\n")
+```
+
+El modelo tuvo un **83.33% de exactitud**. De los pacientes con mayor riesgo, se detectó el **92% (sensibilidad)**. De los pacientes con menor riesgo, se clasificó correctamente el **72.5% (especificidad)**.
+
+---
+
+# 8. Modelo no supervisado: K-Means Clustering
+
+```{r kmeans-prep}
+datos_esc <- scale(df[cuanti])
+```
+
+## 8.1 Método del codo
+
+```{r codo}
+set.seed(8282)
+wss <- sapply(1:10, function(k) {
+  kmeans(datos_esc, centers = k, nstart = 10)$tot.withinss
+})
+
+plot(1:10, wss, type = "b", pch = 19,
+     xlab = "Número de grupos (k)",
+     ylab = "Suma de cuadrados intra-grupo (WSS)",
+     main = "Método del codo")
+```
+
+El método del codo sugiere k = 2, aunque no es completamente claro. Se valida con la silueta.
+
+## 8.2 Método de la silueta
+
+```{r silhouette}
+sil <- sapply(2:10, function(k) {
+  km <- kmeans(datos_esc, centers = k, nstart = 10)
+  mean(silhouette(km$cluster, dist(datos_esc))[, 3])
+})
+
+plot(2:10, sil, type = "b", pch = 19,
+     xlab = "Número de grupos (k)",
+     ylab = "Silueta promedio",
+     main = "Método de la silueta")
+```
+
+El valor más alto de silueta se obtiene con **k = 2**, confirmando la elección.
+
+## 8.3 Resultado del clustering
+
+```{r kmeans-resultado}
+km <- kmeans(datos_esc, centers = 2, nstart = 25)
+table(Cluster = km$cluster, Output = df$output)
+```
+
+```{r kmeans-aciertos}
+aciertos <- (123 + 101) / 300
+cat("Aciertos del clustering:", round(aciertos * 100, 2), "%\n")
+```
+
+- **Cluster 1:** ≈77% son de riesgo (output = 1).
+- **Cluster 2:** ≈72% son sanos (output = 0).
+
+El K-Means con k = 2 coincide en un **74.67%** con el riesgo real, sin utilizar la variable `output`. Esto confirma que las variables cuantitativas capturan buena parte de la estructura del riesgo cardíaco. El ≈25% de desacuerdo sugiere que las variables categóricas (`cp`, `thall`) aportan información adicional que el clúster no recoge.
+
+---
+
+# 9. Modelos de conteo: variable `caa`
+
+`caa` representa el número de vasos sanguíneos principales visibles por fluoroscopía. Toma valores enteros de 0 a 4, por lo que es una variable de conteo real.
+
+```{r caa-distribucion}
+table(df$caa)
+barplot(table(df$caa),
+        main = "Distribución del número de vasos (caa)",
+        xlab = "Número de vasos", ylab = "Frecuencia")
+```
+
+```{r caa-media-varianza}
+cat("Media:   ", mean(df$caa), "\n")
+cat("Varianza:", var(df$caa), "\n")
+```
+
+La varianza es considerablemente mayor que la media, lo que indica **sobredispersión** y sugiere que el modelo Poisson puede no ser el más adecuado.
+
+## 9.1 Modelo Poisson
+
+```{r poisson}
+modelo_poisson <- glm(caa ~ age + sex + oldpeak + output,
+                      data = df, family = poisson)
+summary(modelo_poisson)
+```
+
+Las variables significativas son **edad** y **output**.
+
+**Parámetro de razón de dispersión:**
+
+```{r dispersion}
+deviance(modelo_poisson) / df.residual(modelo_poisson)
+```
+
+El parámetro > 1 confirma sobredispersión, aunque débil.
+
+## 9.2 Modelo Binomial Negativa
+
+```{r binomial-negativa}
+modelo_binomial_negativa <- glm.nb(caa ~ age + sex + oldpeak + output, data = df)
+summary(modelo_binomial_negativa)
+```
+
+Las variables significativas son las mismas que en Poisson (`age` y `output`), lo que muestra consistencia. El theta relativamente alto (≈9) indica poca sobredispersión extra.
+
+## 9.3 Comparación de modelos
+
+```{r aic-comparacion}
+AIC(modelo_poisson, modelo_binomial_negativa)
+```
+
+El modelo Poisson tiene un AIC ligeramente menor al de la Binomial Negativa, por lo que ajusta marginalmente mejor. Dado que la sobredispersión era débil, este resultado es coherente.
+
+## 9.4 Interpretación de IRR (Incidence Rate Ratios)
+
+```{r irr}
+exp(coef(modelo_poisson))
+exp(cbind(IRR = coef(modelo_poisson), confint(modelo_poisson)))
+```
+
+Solo `age` y `output` resultaron significativos:
+
+- **Age (1.04):** por cada año adicional, se esperan un **4% más** de vasos sanguíneos visibles.
+- **Output (0.36):** quienes tienen mayor riesgo de infarto presentan aproximadamente un **64% menos** de vasos sanguíneos visibles por fluoroscopía.
